@@ -67,8 +67,8 @@ def bedops_main(path_input, genome_fasta, writing_path_input):
     df_minus = df[df[14] == "minus"]  # filters the "-" strand
 
     # Sort the data by the start coordinate
-    df_plus = df_plus.sort_values(by=[10])  # sorts the "+" strand by the start coordinate
-    df_minus = df_minus.sort_values(by=[10])  # sorts the "-" strand by the start coordinate
+    df_plus = df_plus.sort_values(by=[1, 10])  # sorts the "+" strand by the start coordinate
+    df_minus = df_minus.sort_values(by=[1, 10])  # sorts the "-" strand by the start coordinate
 
     # -----------------------------------------------------------------------------
     # 3) BEDOPS files creation:
@@ -76,7 +76,9 @@ def bedops_main(path_input, genome_fasta, writing_path_input):
     #  row[1] == Chromosome ID, row[10] == Start coordinate, row[11] == End coordinate
     
     df_plus[[1, 10, 11]].to_csv(writing_path_input + "_plus.bed", sep="\t", header=False, index=False)  # creates a BED file for the "+" strand
-    df_minus[[1, 10, 11]].to_csv(writing_path_input + "_minus.bed", sep="\t", header=False, index=False)  # creates a BED file for the "-" strand
+    # In the minus strand its important to change the order of the coordinates, because "bedops" reads them like "plus" strand.
+    # If not, it will not merge them.
+    df_minus[[1, 11, 10]].to_csv(writing_path_input + "_minus.bed", sep="\t", header=False, index=False)  # creates a BED file for the "-" strand
 
     # -----------------------------------------------------------------------------
     # 4) BEDOPS function call with subprocess.
@@ -93,6 +95,10 @@ def bedops_main(path_input, genome_fasta, writing_path_input):
      # Now let's transform then into Data Frames
     df_plus_bedops = pd.DataFrame([x.split("\t") for x in df_plus_bedops.split("\n") if x])  # transforms the "+" strand BEDOPS output into a Data Frame
     df_minus_bedops = pd.DataFrame([x.split("\t") for x in df_minus_bedops.split("\n") if x])  # transforms the "-" strand BEDOPS output into a Data Frame  
+
+    # Not, let's reorder the minus strand Data Frame
+    df_minus_bedops = df_minus_bedops[[0, 2, 1]]  # reorders the "-" strand Data Frame
+    df_minus_bedops.columns = range(df_minus_bedops.columns.size)  # repairs the column index
 
     # -----------------------------------------------------------------------------
     # 5) Call `blastdbcmd` to get the sequences with the function get_data_sequence()
