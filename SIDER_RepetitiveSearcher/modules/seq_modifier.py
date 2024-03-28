@@ -213,7 +213,7 @@ def specific_sequence_corrected(path_input, nucleotides1000_directory, main_fold
                             x = 1000 - max_end
                             new_start = int(row[10]) - min_start + 1
                             new_end = int(row[11]) + x
-                            if new_end < 0: new_end = 1
+                            if new_end <= 0: new_end = 1
 
                             seq = subprocess.check_output("blastdbcmd -db " + genome_fasta + " -entry "
                                                           + row[1] + " -range " + str(new_end) + "-" + str(new_start)
