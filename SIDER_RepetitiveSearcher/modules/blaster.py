@@ -10,7 +10,7 @@ from modules.aesthetics import boxymcboxface  # Some aesthetics function
 from modules.identifiers import genome_specific_chromosome_main
 from modules.filters import global_filters_main
 from modules.files_manager import columns_to_numeric
-from compare import compare_main
+from modules.compare import compare_main
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -186,7 +186,7 @@ def blastn_blaster(query_path, dict_path, perc_identity):
 # -----------------------------------------------------------------------------
 
 
-def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_time, identity_1, tic_start, coinicidence_data=None):
+def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_time, identity_1, tic_start, coincidence_data=None):
     """
     This function will iterate till a number of ``maximun_runs`` defined.
 
@@ -251,7 +251,7 @@ def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_t
                                                genome_fasta=genome_fasta,
                                                identity_1=identity_1,
                                                run_phase=numbering,
-                                               coindicence_data=coindicence_data)
+                                               coincidence_data=coincidence_data)
         toc = time.perf_counter()
         print("")
         print(f"\t\t- Data row length: {data.shape[0]}\n",
@@ -263,14 +263,15 @@ def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_t
           f"\t- Execution time: {toc - tic:0.2f} seconds\n")
     # -----------------------------------------------------------------------------   
     tic = time.perf_counter()
+    print("")
+    print(f"4. Global filtering:")
     whole_group_filtered = global_filters_main(data_input=whole_group,
                                                genome_fasta=genome_fasta,
                                                writing_path=folder_path)
     toc = time.perf_counter()
     print("")
-    print(f"4. Global filtering:\n",
-        f"\t- Data row length: {whole_group_filtered.shape[0]}\n",
-        f"\t- Execution time: {toc - tic:0.2f} seconds")
+    print(f"\t- Data row length: {whole_group_filtered.shape[0]}\n",
+          f"\t- Execution time: {toc - tic:0.2f} seconds")
 
     # -----------------------------------------------------------------------------
     ## Save the RUN
@@ -280,17 +281,63 @@ def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_t
     whole_group_filtered.to_csv(RUN_saver_path, sep=",", header=True, index=False)  # Saves the RUN
     # -----------------------------------------------------------------------------
     # Compare part
-    if coindicence_data is not None:
-        # This part is important to campere with the last run whole data "whoel_group_fildered", and not only the "new_data" subset.
-        data_input = pd.concat([coinicidence_data, data_input], ignore_index=True)
-        data_input.sort_values(by=["sseqid", "sstrand", "sstart"], inplace=True)  # Sort the data frame by the start coordinate
+    # Prepare folders and path
+    comparison_folder = os.path.join(folder_path, "comparison")
+    os.makedirs(comparison_folder, exist_ok=True)
 
-    coindicence_data, new_data = compare_main(df_1=whole_group_filtered,
-                                              df_2=data_input,
-                                              folder_path=folder_path,
-                                              genome_fasta=genome_fasta)
+    print("")
+    print(f"5. Comparison vs Old Run:")
+    if coincidence_data is not None:
+        print("")
+        print(f"\t- Last Run data:\n",
+              f"\t\t- Coincidence data row length: {coincidence_data.shape[0]}\n",
+              f"\t\t- New data row length: {data_input.shape[0]}")
+        # This part is important to campere with the last run whole data "whoel_group_fildered", and not only the "new_data" subset.
+        data_input = pd.concat([coincidence_data, data_input], ignore_index=True)
+        data_input.sort_values(by=["sseqid", "sstrand", "sstart"], inplace=True)  # Sort the data frame by the start coordinate
+        print(f"\t\t- Total data row length: {data_input.shape[0]}")
+    else:  # when coincidence_data == None
+        print(f"\t- Last Run data:\n",
+                f"\t\t- First run row length: {data_input.shape[0]}")
+        
+    tic = time.perf_counter()
+    print("")
+    print(f"\t- Results in this RUN:")
+    coincidence_data, new_data, old_data_exclusive = compare_main(last_df=whole_group_filtered,
+                                                                  old_df=data_input,
+                                                                  folder_path=comparison_folder,
+                                                                  genome_fasta=genome_fasta)
+    toc = time.perf_counter()
+    print("")
+    print(f"\t\t- Coincidence data row length: {coincidence_data.shape[0]}\n",
+          f"\t\t- New data row length: {new_data.shape[0]}\n",
+          f"\t\t- Old data row length: {old_data_exclusive.shape[0]}")    
+    
+    # Join coincidence_data with old_data_exclusive
+    if not coincidence_data.empty and not old_data_exclusive.empty:
+        coincidence_data = pd.concat([coincidence_data, old_data_exclusive], ignore_index=True)
+        coincidence_data.sort_values(by=["sseqid", "sstrand", "sstart"], inplace=True)
+        print(f"\t\t- Coincidence data + Old data: {coincidence_data.shape[0]}")
+    else:
+        pass
+    print(f"\t\t- Execution time: {toc - tic:0.2f} seconds")
     # -----------------------------------------------------------------------------
     # Stopping part
+    stopping_folder = os.path.join(folder_path, "stopping")
+    os.makedirs(stopping_folder, exist_ok=True)
+
+    if new_data.shape[0] != 0:
+        print("")
+        print(f"6. Stopping criteria:")
+        print(f"\t- New data found. Continuing the program.")
+        print("")
+    else:
+        print("")
+        print(f"6. Stopping criteria:")
+        print(f"\t- No new data found.")
+        print(f"\t- Checking similarities with the last run")
+        
+
 
     # -----------------------------------------------------------------------------
     toc_main = time.perf_counter()
@@ -306,5 +353,5 @@ def repetitive_blaster(data_input, genome_fasta, folder_path, numbering, start_t
                        start_time=start_time,
                        identity_1=identity_1,
                        tic_start=tic_start,
-                       coincidence_data=coindicence_data)
+                       coincidence_data=coincidence_data)
                         

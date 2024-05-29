@@ -14,7 +14,7 @@ from modules.stopping import stopping_main, stopping_bedops  # New module
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def genome_specific_chromosome_main(data_input, chromosome_ID, main_folder_path, genome_fasta, identity_1, run_phase, coincidence_data):
+def genome_specific_chromosome_main(data_input, chromosome_ID, main_folder_path, genome_fasta, identity_1, run_phase, coincidence_data=None):
     """
     Main program, which calls the iterative blaster and all the filters needed.
 

@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-from modules.bedops import bedops_coincidence
+from modules.bedops import bedops_coincidence, bedops_stopping
 
 # Compare the coordinates
 def coincidence_counter (df1, df2):
@@ -32,28 +32,30 @@ def stopping_main(data_df1, data_df2):
         print(f"\t\t\t\t- FALSE")
         return False
     
-def stopping_bedops(data_df1, data_df2, folder_path, genome_fasta):
-    data_df1_plus = data_df1[data_df1["sstrand"] == "plus"].copy()
-    data_df1_minus = data_df1[data_df1["sstrand"] == "minus"].copy()
-    data_df2_plus = data_df2[data_df2["sstrand"] == "plus"].copy()
-    data_df2_minus = data_df2[data_df2["sstrand"] == "minus"].copy()
+def stopping_bedops(new_data, old_data, folder_path, genome_fasta):
+    new_data_plus = new_data[new_data["sstrand"] == "plus"].copy()
+    new_data_minus = new_data[new_data["sstrand"] == "minus"].copy()
+    old_data_plus = old_data[old_data["sstrand"] == "plus"].copy()
+    old_data_minus = old_data[old_data["sstrand"] == "minus"].copy()
 
     # Prepare paths
-    plus_path = os.path.join(folder_path, "bedops_coincidence_plus")
-    minus_path = os.path.join(folder_path, "bedops_coincidence_minus")
+    plus_path = os.path.join(folder_path, "plus")
+    minus_path = os.path.join(folder_path, "minus")
+    os.makedirs(plus_path, exist_ok=True)
+    os.makedirs(minus_path, exist_ok=True)
 
     # -----------------------------------------------------------------------------
     ## Call BEDOPS on plus
-    coincidence_plus, data_plus = bedops_coincidence(data_df1_plus, data_df2_plus, plus_path, "plus", genome_fasta)
+    coincidence_plus, data_plus = bedops_stopping(new_data_plus, old_data_plus, plus_path, "plus", genome_fasta)
 
     # Call BEDOPS on minus. Special case, because BEDOPS reads the coordinates like the "+" strand.
     ## First modify the coordinates.
-    data_df1_minus[["sstart", "send"]] = data_df1_minus[["send", "sstart"]]
-    data_df2_minus[["sstart", "send"]] = data_df2_minus[["send", "sstart"]]
+    new_data_minus[["sstart", "send"]] = new_data_minus[["send", "sstart"]]
+    old_data_minus[["sstart", "send"]] = old_data_minus[["send", "sstart"]]
 
     # -----------------------------------------------------------------------------
 ## And now call BEDOPS on minus
-    coincidence_minus, data_minus = bedops_coincidence(data_df1_minus, data_df2_minus, minus_path. "minus", genome_fasta)
+    coincidence_minus, data_minus = bedops_coincidence(new_data_minus, old_data_minus, minus_path. "minus", genome_fasta)
     if not data_minus.empty:  # If the data frame is not empty
         data_minus[["sstart", "send"]] = data_minus[["send", "sstart"]]  # restore "data_minus" coordinates
 
@@ -64,15 +66,15 @@ def stopping_bedops(data_df1, data_df2, folder_path, genome_fasta):
     # -----------------------------------------------------------------------------
     ## math part
     total_coincidence = coincidence_plus + coincidence_minus
-    perc_coincidence = total_coincidence / data_df2.shape[0] * 100
+    perc_coincidence = total_coincidence / old_data.shape[0] * 100
     print(f"\t\t\t- Coincidence (BEDOPS version):\n",
-          f"\t\t\t\t- {total_coincidence}/{data_df2.shape[0]} - {perc_coincidence:.2f}%")
+          f"\t\t\t\t- {total_coincidence}/{old_data.shape[0]} - {perc_coincidence:.2f}%")
     
     # -----------------------------------------------------------------------------
     ## Now recapture data
 
     
-    if total_coincidence == data_df2.shape[0]:
+    if total_coincidence == old_data.shape[0]:
         print(f"\t\t\t\t- TRUE")
         return True, recapture_data
     else:  # If the the coincidence is not the 100%
